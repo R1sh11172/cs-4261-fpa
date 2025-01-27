@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { View, Text, TextInput, Button, Alert, StyleSheet } from 'react-native';
-import { register, login } from '../../services/authService';
+import { register, login } from '../services/authService';
 import { useNavigation, useRouter } from 'expo-router';
 
 export default function App() {
@@ -22,7 +22,7 @@ export default function App() {
     try {
       const user = await login(email, password);
       Alert.alert('Success', `Welcome back: ${user.email}`);
-      router.replace('/(tabs)'); // Redirect to Home (tabs layout)
+      router.replace('/(tabs)/Home'); // Redirect to Home (tabs layout)
     } catch (error) {
       Alert.alert('Error', (error as Error).message);
     }
@@ -62,7 +62,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#f8f9fa',
   },
   title: {
-    fontSize: 24,
+    fontSize: 48,
     fontWeight: 'bold',
     marginBottom: 20,
     textAlign: 'center',
