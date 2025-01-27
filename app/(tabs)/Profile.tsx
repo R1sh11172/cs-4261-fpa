@@ -5,7 +5,7 @@ import { getAuth, signOut } from 'firebase/auth';
 import { useAuth } from '@/hooks/useAuth';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-const Explore = () => {
+const Profile = () => {
   const { user } = useAuth();
   const router = useRouter();
   const [favoriteAirports, setFavoriteAirports] = useState<any[]>([]);
@@ -63,7 +63,7 @@ const Explore = () => {
       />
       <Button title="Refresh Favorites" onPress={fetchFavorites} />
 
-      <Text style={styles.note}>Manage your account settings below:</Text>
+      {/* <Text style={styles.note}>Manage your account settings below:</Text> */}
       <Button title="Sign Out" onPress={handleSignOut} color="#FF6347" />
     </View>
   );
@@ -76,6 +76,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
   },
   title: {
+    marginTop: 24,
     padding: 16,
     fontSize: 24,
     fontWeight: 'bold',
@@ -114,4 +115,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default Explore;
+export default Profile;

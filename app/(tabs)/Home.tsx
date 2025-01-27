@@ -100,7 +100,7 @@ export default function Home() {
 
 return (
   <ScrollView style={styles.container}>
-    <Text style={styles.title}>Airport<Text style={styles.wiki}>Wiki</Text></Text>
+    <Text style={styles.title}>Airport<Text style={styles.wiki}>Wiki</Text> ✈️</Text>
     <TextInput
       style={styles.input}
       placeholder="Enter FAA code (e.g., ATL)"
