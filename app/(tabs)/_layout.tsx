@@ -1,5 +1,5 @@
-import { Tabs } from 'expo-router';
-import React from 'react';
+import { Tabs, useRouter } from 'expo-router';
+import React, { useEffect } from 'react';
 import { Platform } from 'react-native';
 
 import { HapticTab } from '@/components/HapticTab';
@@ -7,9 +7,23 @@ import { IconSymbol } from '@/components/ui/IconSymbol';
 import TabBarBackground from '@/components/ui/TabBarBackground';
 import { Colors } from '@/constants/Colors';
 import { useColorScheme } from '@/hooks/useColorScheme';
+import { useAuth } from '@/hooks/useAuth'; // Assuming this hook provides user & loading state
 
-export default function TabLayout() {
+export default function TabLayout({ children }: { children: React.ReactNode }) {
   const colorScheme = useColorScheme();
+  const { user, loading } = useAuth(); 
+  const router = useRouter();
+
+  useEffect(() => {
+    // Redirect to login if no user is authenticated
+    if (!loading && !user) {
+      router.replace('/');
+    }
+  }, [loading, user]);
+
+  if (loading) {
+    return null; 
+  }
 
   return (
     <Tabs
@@ -25,7 +39,8 @@ export default function TabLayout() {
           },
           default: {},
         }),
-      }}>
+      }}
+    >
       <Tabs.Screen
         name="index"
         options={{

@@ -3,12 +3,14 @@ import { View, Text, TextInput, Button, Alert, StyleSheet, ScrollView, Image, To
 import { getAirportInfo, getAirportCharts, getWeather } from '../../services/aviationApiService';
 import { AirportInfo } from '../../types'; // Import the AirportInfo type
 
+import AsyncStorage from '@react-native-async-storage/async-storage'; // Add this for storage
+
 export default function Home() {
   const [airportCode, setAirportCode] = useState('');
   const [airportInfo, setAirportInfo] = useState<AirportInfo | null>(null);
   const [airportCharts, setAirportCharts] = useState<{ title: string; url: string; thumbnail: string }[]>([]);
   const [weatherData, setWeatherData] = useState<{ temp: number; wspd: number } | null>(null);
-
+  const [favorites, setFavorites] = useState<string[]>([]);
 
   const mapChartsData = (rawData: Record<string, any>) => {
     const airportCode = Object.keys(rawData)[0]; // Get the first key (e.g., "KSEA")
@@ -63,6 +65,33 @@ export default function Home() {
     }
   };
 
+  const addToFavorites = async () => {
+    if (!airportInfo) {
+      Alert.alert('Error', 'No airport selected to add to favorites.');
+      return;
+    }
+  
+    try {
+      const storedFavorites = await AsyncStorage.getItem('favoriteAirports');
+      const favorites = storedFavorites ? JSON.parse(storedFavorites) : [];
+      
+      // Check if the airport is already in favorites
+      if (favorites.some((fav: any) => fav.facility_name === airportInfo.facility_name)) {
+        Alert.alert('Notice', 'This airport is already in your favorites.');
+        return;
+      }
+  
+      // Add the airport to favorites
+      favorites.push(airportInfo);
+      await AsyncStorage.setItem('favoriteAirports', JSON.stringify(favorites));
+      Alert.alert('Success', 'Airport added to favorites!');
+    } catch (error) {
+      console.error('Failed to add to favorites:', error);
+      Alert.alert('Error', 'Unable to add this airport to favorites.');
+    }
+  };
+  
+
   const getWeatherIcon = (temp: number) => {
     if (temp > 15.5) return '☀️'; // Sunny
     if (temp > 4.4 && temp <= 15.5) return '☁️'; // Cloudy
@@ -79,6 +108,7 @@ return (
       onChangeText={setAirportCode}
     />
     <Button title="Fetch Airport Info" onPress={fetchAirportData} />
+    <Button title="Add to Favorites" onPress={addToFavorites} />
     {airportInfo && (
       <View style={styles.result}>
         <Text style={styles.infoText}>Name: {airportInfo.facility_name}</Text>
