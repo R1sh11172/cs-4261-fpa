@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { View, Text, TextInput, Button, Alert, StyleSheet, ScrollView, Image, TouchableOpacity, Linking } from 'react-native';
 import { getAirportInfo, getAirportCharts, getWeather } from '../../services/aviationApiService';
 import { AirportInfo } from '../../types'; // Import the AirportInfo type
+import { addReview, fetchReviews } from '../../services/reviewService';
 
 import AsyncStorage from '@react-native-async-storage/async-storage'; // Add this for storage
 
@@ -11,6 +12,12 @@ export default function Home() {
   const [airportCharts, setAirportCharts] = useState<{ title: string; url: string; thumbnail: string }[]>([]);
   const [weatherData, setWeatherData] = useState<{ temp: number; wspd: number } | null>(null);
   const [favorites, setFavorites] = useState<string[]>([]);
+
+  const [rating, setRating] = useState('');
+  const [comment, setComment] = useState('');
+  const [averageRating, setAverageRating] = useState('');
+  const [reviews, setReviews] = useState<any[]>([]);
+
 
   const mapChartsData = (rawData: Record<string, any>) => {
     const airportCode = Object.keys(rawData)[0]; // Get the first key (e.g., "KSEA")
@@ -59,6 +66,8 @@ export default function Home() {
       } else {
         setAirportCharts(formattedCharts);
       }
+
+      await loadReviews();
     } catch (error) {
       Alert.alert('Error', 'Failed to fetch airport data.');
       console.log(error)
@@ -98,8 +107,42 @@ export default function Home() {
     return '❄️'; // Snowflake
   };
 
+  const handleAddReview = async () => {
+    const numericRating = Number(rating);
+    if (!rating || isNaN(numericRating) || numericRating < 0 || numericRating > 10) {
+      Alert.alert('Error', 'Please enter a valid rating (0-10).');
+      return;
+    }
+  
+    // Check if the user has already submitted a review
+    const existingReview = reviews.find((review) => review.userId === 'testUserId'); // Replace 'testUserId' with the logged-in user's ID
+    if (existingReview) {
+      Alert.alert('Error', 'You have already submitted a review for this airport.');
+      return;
+    }
+    console.log("NEW REVIEW")
+  
+    try {
+      const newCode = airportCode.toUpperCase();
+      await addReview(newCode, numericRating, comment, 'testUserId');
+      Alert.alert('Success', 'Review added successfully!');
+      loadReviews(); // Refresh reviews
+    } catch (error) {
+      Alert.alert('Error', 'Failed to add review.');
+    }
+  };
+  
+
+  const loadReviews = async () => {
+    const newCode = airportCode.toUpperCase();
+    const { reviews, averageRating } = await fetchReviews(newCode);
+    setReviews(reviews);
+    setAverageRating(averageRating);
+  };
+
+
 return (
-  <ScrollView style={styles.container}>
+  <ScrollView style={styles.scrollContainer}>
     <Text style={styles.title}>Airport<Text style={styles.wiki}>Wiki</Text> ✈️</Text>
     <TextInput
       style={styles.input}
@@ -164,6 +207,36 @@ return (
           ))}
         </View>
       )}
+      {airportInfo && (
+        <View style={styles.container}>
+        <Text style={styles.subtitle}>Add a Review</Text>
+        <TextInput
+          style={styles.input}
+          placeholder="Enter a rating (0-10)"
+          value={rating}
+          onChangeText={setRating}
+          keyboardType="numeric"
+        />
+        <TextInput
+          style={styles.input}
+          placeholder="Enter a comment (optional)"
+          value={comment}
+          onChangeText={setComment}
+        />
+        <Button title="Submit Review" onPress={handleAddReview} />
+  
+        <Text style={styles.average}>Average Rating: {averageRating}</Text>
+  
+        <Text style={styles.subtitle}>Reviews</Text>
+        {reviews.map((review, index) => (
+          <Text key={index}>
+            {review.rating}/10 - {review.comment}
+          </Text>
+        ))}
+      </View>
+      )}
+      <Text style={styles.blank}></Text>
+
   </ScrollView>
 );
 }
@@ -288,5 +361,19 @@ weatherLabel: {
 windSpeed: {
   fontSize: 24,
   fontWeight: 'bold',
+},
+average: { fontSize: 16, marginVertical: 10 },
+scrollContainer: {
+  flex: 1,
+  padding: 20, // Add padding for better spacing
+  paddingBottom: 0,
+  backgroundColor: '#f8f9fa',
+},
+blank: {
+  fontSize: 48,
+  fontWeight: 'bold',
+  marginVertical: 20,
+  textAlign: 'center',
+  color: "#f8f9fa"
 },
 });
