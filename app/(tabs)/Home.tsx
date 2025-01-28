@@ -225,8 +225,11 @@ return (
         />
         <Button title="Submit Review" onPress={handleAddReview} />
   
-        <Text style={styles.average}>Average Rating: {averageRating}</Text>
-  
+        <Text style={styles.average}>
+          Average Rating: {averageRating} ({'★'.repeat(Math.round(Number(averageRating) / 2)) + '☆'.repeat(5 - Math.round(Number(averageRating) / 2))})
+        </Text>
+
+
         <Text style={styles.subtitle}>Reviews</Text>
         {reviews.map((review, index) => (
           <Text key={index}>
