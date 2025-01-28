@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, FlatList, Button, StyleSheet, ScrollView } from 'react-native';
+import { View, Text, FlatList, Button, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
 import { useRouter } from 'expo-router';
 import { getAuth, signOut } from 'firebase/auth';
 import { useAuth } from '@/hooks/useAuth';
@@ -34,6 +34,19 @@ const Profile = () => {
     }
   };
 
+  interface Airport {
+    facility_name: string;
+    city: string;
+    state_full: string;
+  }
+
+  const navigateToAirport = (airport: Airport) => {
+    router.push({
+      pathname: '/Home',
+      params: { airport: JSON.stringify(airport) },
+    });
+  };
+
   const handleSignOut = async () => {
     try {
       const auth = getAuth();
@@ -53,11 +66,11 @@ const Profile = () => {
         data={favoriteAirports}
         keyExtractor={(item, index) => index.toString()}
         renderItem={({ item, index }) => (
-          <View style={styles.airportItem}>
+          <TouchableOpacity onPress={() => navigateToAirport(item)} style={styles.airportItem}>
             <Text style={styles.airportName}>{item.facility_name}</Text>
             <Text style={styles.airportCity}>{item.city}, {item.state_full}</Text>
             <Button title="Remove" onPress={() => removeFromFavorites(index)} />
-          </View>
+          </TouchableOpacity>
         )}
         style={styles.list}
       />
