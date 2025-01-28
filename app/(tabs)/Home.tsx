@@ -83,6 +83,44 @@ export default function Home() {
     }
   };
 
+  // const handleAddToFavorites = async () => {
+  //   const auth = getAuth();
+  //   const user = auth.currentUser;
+  //   if (!user) {
+  //     Alert.alert('Error', 'You must be logged in to add to favorites.');
+  //     return;
+  //   }
+
+  //   if (!airportCode) {
+  //     Alert.alert('Error', 'Please enter an airport code.');
+  //     return;
+  //   }
+  
+  //   if (airportInfo?.faa_ident !== airportCode.toUpperCase()) {
+  //     Alert.alert('Error', 'Please fetch airport data first.');
+  //     return;
+  //   }
+
+  //   const userId = user.uid;
+  //   await loadFavorites();
+
+  //   // Check if the user has already added this airport to their favorites
+  //   const existingFavorite = favorites.find((favorite) => favorite.userId === user.uid && favorite.airportCode === airportCode.toUpperCase());
+  //   if (existingFavorite) {
+  //     Alert.alert('Error', 'This airport is already in your favorites.');
+  //     return;
+  //   }
+  
+  //   try {
+  //     const newCode = airportCode.toUpperCase();
+  //     await addFavorite(newCode, user.uid, airportInfo?.facility_name, airportInfo?.city, airportInfo?.state_full);
+  //     Alert.alert('Success', 'Airport added to favorites!');
+  //     loadFavorites(); // Refresh favorites list
+  //   } catch (error) {
+  //     Alert.alert('Error', 'Failed to add airport to favorites.');
+  //   }
+  // };
+
   const handleAddToFavorites = async () => {
     const auth = getAuth();
     const user = auth.currentUser;
@@ -91,24 +129,46 @@ export default function Home() {
       return;
     }
   
-    const userId = user.uid;
+    if (!airportCode) {
+      Alert.alert('Error', 'Please enter an airport code.');
+      return;
+    }
   
-    // Check if the user has already added this airport to their favorites
-    const existingFavorite = favorites.find((favorite) => favorite.userId === user.uid && favorite.airportCode === airportCode.toUpperCase());
-    if (existingFavorite) {
-      Alert.alert('Error', 'This airport is already in your favorites.');
+    if (airportInfo?.faa_ident !== airportCode.toUpperCase()) {
+      Alert.alert('Error', 'Please fetch airport data first.');
       return;
     }
   
     try {
+      // Instead of loadFavorites() + setFavorites() + reading from favorites,
+      // fetch the user's favorites here and check them directly:
+      const freshFavorites = await fetchFavorites(user.uid);
+      const alreadyFavorite = freshFavorites.find(
+        (fav) => fav.userId === user.uid && fav.airportCode === airportCode.toUpperCase()
+      );
+  
+      if (alreadyFavorite) {
+        // Alert.alert('Error', 'This airport is already in your favorites.');
+        return;
+      }
+  
       const newCode = airportCode.toUpperCase();
       await addFavorite(newCode, user.uid, airportInfo?.facility_name, airportInfo?.city, airportInfo?.state_full);
+  
+      // Now update your component state so it stays in sync
+      setFavorites([...freshFavorites, {
+        airportCode: newCode,
+        userId: user.uid,
+        airportName: airportInfo?.facility_name,
+        city: airportInfo?.city,
+        state: airportInfo?.state_full,
+      }]);
       Alert.alert('Success', 'Airport added to favorites!');
-      loadFavorites(); // Refresh favorites list
     } catch (error) {
       Alert.alert('Error', 'Failed to add airport to favorites.');
     }
   };
+  
   
   const loadFavorites = async () => {
     const auth = getAuth();
@@ -176,8 +236,8 @@ return (
       onChangeText={setAirportCode}
     />
     <Button title="Fetch Airport Info" onPress={fetchAirportData} />
-    <Button title="Add to Favorites" onPress={handleAddToFavorites} />
-    <View>
+    {<Button title="Add to Favorites" onPress={handleAddToFavorites} />}
+    {/* <View>
       <Text style={styles.subtitle}>My Favorite Airports</Text>
       {favorites.length === 0 ? (
         <Text>No favorite airports yet.</Text>
@@ -186,7 +246,7 @@ return (
           <Text key={index}>{favorite.airportName}</Text>
         ))
       )}
-    </View>
+    </View> */}
     {airportInfo && (
       <View style={styles.result}>
         <Text style={styles.infoText}>Name: {airportInfo.facility_name}</Text>

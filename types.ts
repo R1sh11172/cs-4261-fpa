@@ -8,4 +8,5 @@ export interface AirportInfo {
     latitude: string;
     longitude: string;
     control_tower: string;
+    faa_ident: string;
   }
