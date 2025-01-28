@@ -3,6 +3,7 @@ import { View, Text, TextInput, Button, Alert, StyleSheet, ScrollView, Image, To
 import { getAirportInfo, getAirportCharts, getWeather } from '../../services/aviationApiService';
 import { AirportInfo } from '../../types'; // Import the AirportInfo type
 import { addReview, fetchReviews } from '../../services/reviewService';
+import { getAuth } from 'firebase/auth';
 
 import AsyncStorage from '@react-native-async-storage/async-storage'; // Add this for storage
 
@@ -113,9 +114,18 @@ export default function Home() {
       Alert.alert('Error', 'Please enter a valid rating (0-10).');
       return;
     }
+
+    const auth = getAuth();
+    const user = auth.currentUser;
+    if (!user) {
+      Alert.alert('Error', 'You must be logged in to submit a review.');
+      return;
+    }
+
+    const userId = user.uid;
   
     // Check if the user has already submitted a review
-    const existingReview = reviews.find((review) => review.userId === 'testUserId'); // Replace 'testUserId' with the logged-in user's ID
+    const existingReview = reviews.find((review) => review.userId === user.uid); // Replace 'testUserId' with the logged-in user's ID
     if (existingReview) {
       Alert.alert('Error', 'You have already submitted a review for this airport.');
       return;
@@ -124,7 +134,7 @@ export default function Home() {
   
     try {
       const newCode = airportCode.toUpperCase();
-      await addReview(newCode, numericRating, comment, 'testUserId');
+      await addReview(newCode, numericRating, comment, user.uid);
       Alert.alert('Success', 'Review added successfully!');
       loadReviews(); // Refresh reviews
     } catch (error) {
@@ -238,6 +248,9 @@ return (
         ))}
       </View>
       )}
+      <Text style={styles.blank}></Text>
+      <Text style={styles.blank}></Text>
+      <Text style={styles.blank}></Text>
       <Text style={styles.blank}></Text>
 
   </ScrollView>
