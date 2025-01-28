@@ -1,18 +1,21 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, TextInput, Button, Alert, StyleSheet, ScrollView, Image, TouchableOpacity, Linking } from 'react-native';
 import { getAirportInfo, getAirportCharts, getWeather } from '../../services/aviationApiService';
 import { AirportInfo } from '../../types'; // Import the AirportInfo type
 import { addReview, fetchReviews } from '../../services/reviewService';
+import { addFavorite, fetchFavorites } from '../../services/favoriteService';
 import { getAuth } from 'firebase/auth';
 
 import AsyncStorage from '@react-native-async-storage/async-storage'; // Add this for storage
+import { getFirestore, doc, setDoc, getDoc, updateDoc, arrayUnion } from 'firebase/firestore';
+
 
 export default function Home() {
   const [airportCode, setAirportCode] = useState('');
   const [airportInfo, setAirportInfo] = useState<AirportInfo | null>(null);
   const [airportCharts, setAirportCharts] = useState<{ title: string; url: string; thumbnail: string }[]>([]);
   const [weatherData, setWeatherData] = useState<{ temp: number; wspd: number } | null>(null);
-  const [favorites, setFavorites] = useState<string[]>([]);
+  const [favorites, setFavorites] = useState<any[]>([]);
 
   const [rating, setRating] = useState('');
   const [comment, setComment] = useState('');
@@ -29,6 +32,12 @@ export default function Home() {
       url: chart.pdf_path || '#',
       thumbnail: chart.thumbnail || 'https://via.placeholder.com/150', // Placeholder for missing thumbnails
     }));
+  };
+
+  const getWeatherIcon = (temp: number) => {
+    if (temp > 15.5) return '☀️'; // Sunny
+    if (temp > 4.4 && temp <= 15.5) return '☁️'; // Cloudy
+    return '❄️'; // Snowflake
   };
   
 
@@ -57,7 +66,6 @@ export default function Home() {
         wspd: weather.wspd
       });
 
-
       const chartsData = await getAirportCharts(iaco);
       const charts = chartsData[iaco.toUpperCase()];
       // console.log('Airport charts: ', chartsData)
@@ -75,38 +83,105 @@ export default function Home() {
     }
   };
 
-  const addToFavorites = async () => {
-    if (!airportInfo) {
-      Alert.alert('Error', 'No airport selected to add to favorites.');
+  // const handleAddToFavorites = async () => {
+  //   const auth = getAuth();
+  //   const user = auth.currentUser;
+  //   if (!user) {
+  //     Alert.alert('Error', 'You must be logged in to add to favorites.');
+  //     return;
+  //   }
+
+  //   if (!airportCode) {
+  //     Alert.alert('Error', 'Please enter an airport code.');
+  //     return;
+  //   }
+  
+  //   if (airportInfo?.faa_ident !== airportCode.toUpperCase()) {
+  //     Alert.alert('Error', 'Please fetch airport data first.');
+  //     return;
+  //   }
+
+  //   const userId = user.uid;
+  //   await loadFavorites();
+
+  //   // Check if the user has already added this airport to their favorites
+  //   const existingFavorite = favorites.find((favorite) => favorite.userId === user.uid && favorite.airportCode === airportCode.toUpperCase());
+  //   if (existingFavorite) {
+  //     Alert.alert('Error', 'This airport is already in your favorites.');
+  //     return;
+  //   }
+  
+  //   try {
+  //     const newCode = airportCode.toUpperCase();
+  //     await addFavorite(newCode, user.uid, airportInfo?.facility_name, airportInfo?.city, airportInfo?.state_full);
+  //     Alert.alert('Success', 'Airport added to favorites!');
+  //     loadFavorites(); // Refresh favorites list
+  //   } catch (error) {
+  //     Alert.alert('Error', 'Failed to add airport to favorites.');
+  //   }
+  // };
+
+  const handleAddToFavorites = async () => {
+    const auth = getAuth();
+    const user = auth.currentUser;
+    if (!user) {
+      Alert.alert('Error', 'You must be logged in to add to favorites.');
+      return;
+    }
+  
+    if (!airportCode) {
+      Alert.alert('Error', 'Please enter an airport code.');
+      return;
+    }
+  
+    if (airportInfo?.faa_ident !== airportCode.toUpperCase()) {
+      Alert.alert('Error', 'Please fetch airport data first.');
       return;
     }
   
     try {
-      const storedFavorites = await AsyncStorage.getItem('favoriteAirports');
-      const favorites = storedFavorites ? JSON.parse(storedFavorites) : [];
-      
-      // Check if the airport is already in favorites
-      if (favorites.some((fav: any) => fav.facility_name === airportInfo.facility_name)) {
-        Alert.alert('Notice', 'This airport is already in your favorites.');
+      // Instead of loadFavorites() + setFavorites() + reading from favorites,
+      // fetch the user's favorites here and check them directly:
+      const freshFavorites = await fetchFavorites(user.uid);
+      const alreadyFavorite = freshFavorites.find(
+        (fav) => fav.userId === user.uid && fav.airportCode === airportCode.toUpperCase()
+      );
+  
+      if (alreadyFavorite) {
+        // Alert.alert('Error', 'This airport is already in your favorites.');
         return;
       }
   
-      // Add the airport to favorites
-      favorites.push(airportInfo);
-      await AsyncStorage.setItem('favoriteAirports', JSON.stringify(favorites));
+      const newCode = airportCode.toUpperCase();
+      await addFavorite(newCode, user.uid, airportInfo?.facility_name, airportInfo?.city, airportInfo?.state_full);
+  
+      // Now update your component state so it stays in sync
+      setFavorites([...freshFavorites, {
+        airportCode: newCode,
+        userId: user.uid,
+        airportName: airportInfo?.facility_name,
+        city: airportInfo?.city,
+        state: airportInfo?.state_full,
+      }]);
       Alert.alert('Success', 'Airport added to favorites!');
     } catch (error) {
-      console.error('Failed to add to favorites:', error);
-      Alert.alert('Error', 'Unable to add this airport to favorites.');
+      Alert.alert('Error', 'Failed to add airport to favorites.');
     }
   };
   
-
-  const getWeatherIcon = (temp: number) => {
-    if (temp > 15.5) return '☀️'; // Sunny
-    if (temp > 4.4 && temp <= 15.5) return '☁️'; // Cloudy
-    return '❄️'; // Snowflake
+  
+  const loadFavorites = async () => {
+    const auth = getAuth();
+    const user = auth.currentUser;
+    if (user) {
+      const favoritesList = await fetchFavorites(user.uid);
+      setFavorites(favoritesList);
+    }
   };
+
+  useEffect(() => {
+    loadFavorites(); // Load favorites when Home component mounts
+  }, []);
 
   const handleAddReview = async () => {
     const numericRating = Number(rating);
@@ -161,7 +236,17 @@ return (
       onChangeText={setAirportCode}
     />
     <Button title="Fetch Airport Info" onPress={fetchAirportData} />
-    <Button title="Add to Favorites" onPress={addToFavorites} />
+    {<Button title="Add to Favorites" onPress={handleAddToFavorites} />}
+    {/* <View>
+      <Text style={styles.subtitle}>My Favorite Airports</Text>
+      {favorites.length === 0 ? (
+        <Text>No favorite airports yet.</Text>
+      ) : (
+        favorites.map((favorite, index) => (
+          <Text key={index}>{favorite.airportName}</Text>
+        ))
+      )}
+    </View> */}
     {airportInfo && (
       <View style={styles.result}>
         <Text style={styles.infoText}>Name: {airportInfo.facility_name}</Text>

@@ -1,43 +1,56 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, FlatList, Button, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
+import { View, Text, FlatList, Button, StyleSheet, Alert, TouchableOpacity, ScrollView } from 'react-native';
 import { useRouter } from 'expo-router';
 import { getAuth, signOut } from 'firebase/auth';
 import { useAuth } from '@/hooks/useAuth';
+import { addFavorite, fetchFavorites, removeFavorite } from '../../services/favoriteService';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const Profile = () => {
   const { user } = useAuth();
   const router = useRouter();
-  const [favoriteAirports, setFavoriteAirports] = useState<any[]>([]);
+  // const [favoriteAirports, setFavoriteAirports] = useState<any[]>([]);
 
-  const fetchFavorites = async () => {
-    try {
-      const storedFavorites = await AsyncStorage.getItem('favoriteAirports');
-      const favorites = storedFavorites ? JSON.parse(storedFavorites) : [];
-      setFavoriteAirports(favorites);
-    } catch (error) {
-      console.error('Failed to fetch favorite airports:', error);
+  const [favorites, setFavorites] = useState<any[]>([]);
+  
+  const loadFavorites = async () => {
+    const auth = getAuth();
+    const user = auth.currentUser;
+    if (user) {
+      const favoritesList = await fetchFavorites(user.uid);
+      console.log("favorites list", favoritesList);
+      setFavorites(favoritesList);
     }
   };
 
   useEffect(() => {
-    fetchFavorites();
+    loadFavorites();
   }, []);
 
-  const removeFromFavorites = async (index: number) => {
+  const handleRemoveFavorite = async (airportCode: string) => {
+    const auth = getAuth();
+    const user = auth.currentUser;
+  
+    if (!user) {
+      alert('Error: authenticate before deleting');
+      return;
+    }
+  
     try {
-      const updatedFavorites = favoriteAirports.filter((_, i) => i !== index);
-      setFavoriteAirports(updatedFavorites);
-      await AsyncStorage.setItem('favoriteAirports', JSON.stringify(updatedFavorites));
+      await removeFavorite(user.uid, airportCode, setFavorites);
+      loadFavorites(); // Refresh the list after removal
     } catch (error) {
-      console.error('Failed to remove favorite airport:', error);
+      Alert.alert('Error', 'failed to delete favorite');
     }
   };
+  
 
   interface Airport {
-    facility_name: string;
+    airportName: string;
+    airportCode: string;
     city: string;
-    state_full: string;
+    state: string;
+    userId: string;
   }
 
   const navigateToAirport = (airport: Airport) => {
@@ -63,18 +76,18 @@ const Profile = () => {
       <Text style={styles.sectionTitle}>Your Favorite Airports:</Text>
 
       <FlatList
-        data={favoriteAirports}
-        keyExtractor={(item, index) => index.toString()}
-        renderItem={({ item, index }) => (
-          <TouchableOpacity onPress={() => navigateToAirport(item)} style={styles.airportItem}>
-            <Text style={styles.airportName}>{item.facility_name}</Text>
-            <Text style={styles.airportCity}>{item.city}, {item.state_full}</Text>
-            <Button title="Remove" onPress={() => removeFromFavorites(index)} />
-          </TouchableOpacity>
-        )}
-        style={styles.list}
-      />
-      <Button title="Refresh Favorites" onPress={fetchFavorites} />
+  data={favorites}
+  keyExtractor={(item) => item.airportCode} // Ensure unique key
+  renderItem={({ item }) => (
+    <TouchableOpacity onPress={() => navigateToAirport(item)} style={styles.airportItem}>
+      <Text style={styles.airportName}>{item.airportName}</Text>
+      <Text style={styles.airportCity}>{item.city}, {item.state}</Text>
+      <Button title="Remove" onPress={() => handleRemoveFavorite(item.airportCode)} />
+    </TouchableOpacity>
+  )}
+  style={styles.list}
+/>
+      <Button title="Refresh Favorites" onPress={loadFavorites} />
 
       {/* <Text style={styles.note}>Manage your account settings below:</Text> */}
       <Button title="Sign Out" onPress={handleSignOut} color="#FF6347" />
